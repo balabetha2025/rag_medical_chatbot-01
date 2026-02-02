@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Medical Chatbot</title>
+
+  <!-- Optional: nicer font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg1:#0b1020;
+      --bg2:#0b2d39;
+      --card: rgba(255,255,255,.08);
+      --card2: rgba(255,255,255,.06);
+      --border: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --accent1:#7c3aed; /* purple */
+      --accent2:#22c55e; /* green  */
+      --accent3:#06b6d4; /* cyan   */
+      --danger:#fb7185;
+      --bubble-user: linear-gradient(135deg, rgba(124,58,237,.95), rgba(6,182,212,.85));
+      --bubble-assistant: rgba(255,255,255,.10);
+      --ring: 0 0 0 4px rgba(124,58,237,.18);
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height: 100%; }
+
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 600px at 15% 10%, rgba(124,58,237,.25), transparent 60%),
+        radial-gradient(800px 500px at 80% 20%, rgba(6,182,212,.22), transparent 55%),
+        radial-gradient(900px 600px at 70% 90%, rgba(34,197,94,.18), transparent 60%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+      overflow-x: hidden;
+    }
+
+    /* Top glow blobs */
+    .blob{
+      position: fixed;
+      inset: auto auto 0 0;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle at 30% 30%, rgba(124,58,237,.35), transparent 60%);
+      filter: blur(22px);
+      opacity: .9;
+      pointer-events:none;
+      transform: translate(-30%, 10%);
+    }
+    .blob.b2{
+      inset: 0 0 auto auto;
+      width: 520px;
+      height: 520px;
+      background: radial-gradient(circle at 70% 30%, rgba(6,182,212,.28), transparent 62%);
+      transform: translate(30%, -25%);
+    }
+
+    .wrap{
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px 20px;
+    }
+
+    .app{
+      width: 100%;
+      max-width: 980px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+
+    /* Header */
+    header{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand{
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      min-width: 0;
+    }
+
+    .logo{
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(6,182,212,.75));
+      box-shadow: 0 10px 28px rgba(124,58,237,.22);
+      border: 1px solid rgba(255,255,255,.14);
+      flex: 0 0 auto;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing: .2px;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brand p{
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .right-actions{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      font-size: 12px;
+      user-select:none;
+    }
+
+    .dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent2);
+      box-shadow: 0 0 0 4px rgba(34,197,94,.18);
+    }
+
+    /* Main layout */
+    .main{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      min-height: 640px;
+    }
+
+    @media (max-width: 920px){
+      .main{ grid-template-columns: 1fr; }
+      .sidebar{ display:none; }
+    }
+
+    /* Sidebar */
+    .sidebar{
+      padding: 16px;
+      border-right: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+    }
+
+    .card{
+      border: 1px solid var(--border);
+      background: var(--card2);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .card h2{
+      margin:0 0 8px;
+      font-size: 13px;
+      letter-spacing: .2px;
+      font-weight: 700;
+      color: rgba(255,255,255,.88);
+    }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .chips{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .chip{
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.82);
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform .12s ease, background .12s ease;
+      user-select:none;
+    }
+    .chip:hover{ transform: translateY(-1px); background: rgba(255,255,255,.10); }
+
+    .small{
+      font-size: 11px;
+      color: rgba(255,255,255,.55);
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    /* Chat area */
+    .chat{
+      display:flex;
+      flex-direction: column;
+      position: relative;
+      min-height: 640px;
+    }
+
+    .error{
+      margin: 14px 16px 0;
+      border: 1px solid rgba(251,113,133,.35);
+      background: rgba(251,113,133,.12);
+      color: rgba(255,255,255,.92);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+    }
+
+    .chat-box{
+      flex: 1;
+      padding: 18px 18px 100px; /* space for input bar */
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+
+    .chat-box::-webkit-scrollbar{ width: 10px; }
+    .chat-box::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.10);
+      border: 2px solid rgba(0,0,0,0);
+      background-clip: padding-box;
+      border-radius: 999px;
+    }
+
+    .row{
+      display:flex;
+      gap: 10px;
+      margin: 12px 0;
+      align-items: flex-end;
+    }
+
+    .row.user{ justify-content: flex-end; }
+    .row.assistant{ justify-content: flex-start; }
+
+    .avatar{
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display:grid;
+      place-items:center;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.85);
+      flex: 0 0 auto;
+    }
+    .row.user .avatar{ display:none; }
+
+    .bubble{
+      max-width: 72ch;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.10);
+      line-height: 1.55;
+      font-size: 14px;
+      word-wrap: break-word;
+      white-space: normal;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+    }
+
+    .row.assistant .bubble{
+      background: var(--bubble-assistant);
+      border-top-left-radius: 8px;
+    }
+
+    .row.user .bubble{
+      background: var(--bubble-user);
+      border-top-right-radius: 8px;
+    }
+
+    .meta{
+      margin-top: 6px;
+      font-size: 11px;
+      color: rgba(255,255,255,.60);
+      padding: 0 4px;
+    }
+    .row.user .meta{ text-align:right; }
+    .row.assistant .meta{ text-align:left; }
+
+    /* Bottom input bar */
+    .composer{
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,16,32,.10), rgba(11,16,32,.55));
+      backdrop-filter: blur(14px);
+    }
+
+    .composer form{
+      display:flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    textarea{
+      width: 100%;
+      min-height: 48px;
+      max-height: 140px;
+      resize: vertical;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      box-shadow: none;
+      transition: border .12s ease, box-shadow .12s ease, transform .12s ease;
+    }
+
+    textarea:focus{
+      border-color: rgba(124,58,237,.55);
+      box-shadow: var(--ring);
+    }
+
+    .btn{
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.90);
+      border-radius: 16px;
+      padding: 11px 14px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform .12s ease, background .12s ease, border .12s ease;
+      white-space: nowrap;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.10); }
+    .btn:active{ transform: translateY(0px); }
+
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(6,182,212,.80));
+      border-color: rgba(255,255,255,.10);
+      box-shadow: 0 12px 30px rgba(124,58,237,.22);
+    }
+
+    .btn.danger{
+      background: rgba(251,113,133,.14);
+      border-color: rgba(251,113,133,.22);
+    }
+
+    .footer-actions{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      align-items:center;
+    }
+
+    .note{
+      font-size: 11px;
+      color: rgba(255,255,255,.55);
+      line-height: 1.4;
+    }
+
+    /* Code blocks if model returns code */
+    pre{
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 12px;
+      border-radius: 14px;
+      overflow-x: auto;
+    }
+    code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+    /* Small animation */
+    .fade-in{
+      animation: pop .18s ease-out;
+    }
+    @keyframes pop{
+      from{ transform: translateY(6px); opacity: .0; }
+      to{ transform: translateY(0px); opacity: 1; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="blob"></div>
+  <div class="blob b2"></div>
+
+  <div class="wrap">
+    <div class="app">
+      <header>
+        <div class="brand">
+          <div class="logo" aria-hidden="true">🩺</div>
+          <div style="min-width:0">
+            <h1>AI Medical Chatbot</h1>
+            <p>Ask symptoms • get guidance • cite your documents</p>
+          </div>
+        </div>
+
+        <div class="right-actions">
+          <div class="pill"><span class="dot"></span> Online</div>
+        </div>
+      </header>
+
+      <div class="main">
+        <!-- Sidebar (hidden on mobile) -->
+        <aside class="sidebar">
+          <div class="card">
+            <h2>Try asking</h2>
+            <p class="hint">Click a prompt to auto-fill the box.</p>
+            <div class="chips">
+              <div class="chip" data-prompt="What are the common symptoms of dehydration?">Dehydration symptoms</div>
+              <div class="chip" data-prompt="Explain hypertension in simple terms.">Hypertension basics</div>
+              <div class="chip" data-prompt="What could cause persistent headaches?">Headache causes</div>
+              <div class="chip" data-prompt="What are red-flag symptoms that need urgent care?">Urgent red flags</div>
+              <div class="chip" data-prompt="Give lifestyle advice to improve sleep quality.">Better sleep</div>
+            </div>
+            <div class="small">
+              ⚠️ This is not a doctor. For emergencies, contact local emergency services.
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Tips</h2>
+            <p class="hint">
+              Be specific: age range, duration, severity, medications, and any existing conditions.
+            </p>
+          </div>
+        </aside>
+
+        <!-- Chat -->
+        <section class="chat">
+          {% if error %}
+            <div class="error">⚠️ {{ error }}</div>
+          {% endif %}
+
+          <div id="chat-box" class="chat-box">
+            {% if messages and messages|length > 0 %}
+              {% for msg in messages %}
+                <div class="row {{ msg.role }} fade-in">
+                  {% if msg.role != "user" %}
+                    <div class="avatar" aria-hidden="true">🤖</div>
+                  {% endif %}
+
+                  <div>
+                    <div class="bubble">
+                      {{ msg.content | safe | nl2br }}
+                    </div>
+                    <div class="meta">
+                      {{ msg.role|capitalize }}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="row assistant fade-in">
+                <div class="avatar" aria-hidden="true">🤖</div>
+                <div>
+                  <div class="bubble">
+                    Hi! Ask me a medical question and I’ll answer based on your knowledge base.
+                    <br/><br/>
+                    Example: <b>"What are the symptoms of iron deficiency?"</b>
+                  </div>
+                  <div class="meta">Assistant</div>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Composer -->
+          <div class="composer">
+            <form method="post" action="{{ url_for('index') }}" autocomplete="off">
+              <textarea id="prompt" name="prompt" placeholder="Ask a medical question..." required></textarea>
+              <button class="btn primary" type="submit">Send ➜</button>
+            </form>
+
+            <div class="footer-actions">
+              <div class="note">Press Enter to send • Shift+Enter for new line</div>
+              <form method="get" action="{{ url_for('clear') }}">
+                <button class="btn danger" type="submit">Clear Chat</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-scroll to bottom on load
+    const chatBox = document.getElementById("chat-box");
+    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Click-to-fill prompt chips
+    const promptEl = document.getElementById("prompt");
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const text = chip.getAttribute("data-prompt") || "";
+        if (promptEl) {
+          promptEl.value = text;
+          promptEl.focus();
+        }
+      });
+    });
+
+    // Enter to submit (Shift+Enter = newline)
+    if (promptEl) {
+      promptEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          // Submit the closest form
+          const form = promptEl.closest("form");
+          if (form) form.submit();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
